@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and role information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique identifier for the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "The user's role in the platform." },
+        "twoFactorEnabled": { "type": "boolean", "description": "Whether 2FA is enabled for this user." },
+        "twoFactorSecret": { "type": "string", "description": "The TOTP secret for 2FA." }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "DataEntry": {
+      "title": "Data Entry",
+      "description": "A secure data entry stored by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the data entry." },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this data." },
+        "title": { "type": "string", "description": "The title of the data entry." },
+        "content": { "type": "string", "description": "The encrypted or secure content of the data entry." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the entry was created." },
+        "sharedWith": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of user UIDs this data is shared with."
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "enum": ["read", "write"] },
+          "description": "Map of user UIDs to their specific access level (read or write)."
+        }
+      },
+      "required": ["id", "ownerId", "title", "content", "createdAt"]
+    },
+    "FileEntry": {
+      "title": "File Entry",
+      "description": "A secure, encrypted file stored by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the file entry." },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this file." },
+        "fileName": { "type": "string", "description": "The original name of the file." },
+        "fileType": { "type": "string", "description": "The MIME type of the file." },
+        "encryptedData": { "type": "string", "description": "The base64 encoded, AES encrypted file data." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the file was uploaded." },
+        "sharedWith": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of user UIDs this file is shared with."
+        },
+        "permissions": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "enum": ["read", "write"] },
+          "description": "Map of user UIDs to their specific access level (read or write)."
+        }
+      },
+      "required": ["id", "ownerId", "fileName", "fileType", "encryptedData", "createdAt"]
+    },
+    "BreachLog": {
+      "title": "Breach Log",
+      "description": "A log of a potential or actual data breach event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the log entry." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the event occurred." },
+        "type": { "type": "string", "description": "The type of breach event (e.g., 'Unauthorized Access Attempt')." },
+        "description": { "type": "string", "description": "A description of the event." },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"], "description": "The severity level of the event." }
+      },
+      "required": ["id", "timestamp", "type", "severity"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification for a user about a platform event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique identifier for the notification." },
+        "userId": { "type": "string", "description": "The UID of the user who receives this notification." },
+        "title": { "type": "string", "description": "The title of the notification." },
+        "message": { "type": "string", "description": "The message content of the notification." },
+        "type": { "type": "string", "enum": ["share", "security", "update"], "description": "The type of notification." },
+        "read": { "type": "boolean", "description": "Whether the notification has been read." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the notification was created." }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/data_entries/{entryId}": {
+      "schema": "DataEntry",
+      "description": "Secure data entries."
+    },
+    "/files/{fileId}": {
+      "schema": "FileEntry",
+      "description": "Secure, encrypted files."
+    },
+    "/breach_logs/{logId}": {
+      "schema": "BreachLog",
+      "description": "Logs of security events."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications."
+    }
+  }
+}

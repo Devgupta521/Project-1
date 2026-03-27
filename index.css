@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-50: #f0f4ff;
+  --color-brand-100: #e0e9ff;
+  --color-brand-200: #c1d3ff;
+  --color-brand-300: #92b1ff;
+  --color-brand-400: #5c85ff;
+  --color-brand-500: #3355ff;
+  --color-brand-600: #1a33ff;
+  --color-brand-700: #0011ff;
+  --color-brand-800: #000ecc;
+  --color-brand-900: #000c99;
+}
+
+@layer base {
+  body {
+    @apply bg-[#0F172A] text-slate-100 antialiased overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .dynamic-bg {
+    @apply fixed inset-0 -z-10 overflow-hidden pointer-events-none;
+    background: radial-gradient(circle at 50% -20%, #1E293B 0%, #0F172A 100%);
+  }
+
+  .bg-blob {
+    @apply absolute rounded-full blur-[120px] opacity-20 animate-pulse;
+  }
+
+  .glass-card {
+    @apply bg-slate-900/40 backdrop-blur-2xl border border-slate-800/50 shadow-2xl;
+  }
+  
+  .bento-item {
+    @apply bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] border border-slate-800/50 p-10 transition-all duration-700 hover:shadow-[0_0_50px_-12px_rgba(51,85,255,0.3)] hover:border-brand-500/30 hover:-translate-y-3;
+  }
+
+  .stat-card {
+    @apply relative overflow-hidden rounded-[2.5rem] p-10 border border-slate-800/50 bg-slate-900/40 backdrop-blur-xl transition-all duration-700 hover:shadow-[0_0_50px_-12px_rgba(51,85,255,0.3)] hover:-translate-y-3;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-white via-brand-200 to-brand-500;
+  }
+
+  .glass-button {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 text-white hover:bg-white/10 transition-all duration-300;
+  }
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(2%, 2%) rotate(2deg); }
+  66% { transform: translate(-1%, 3%) rotate(-1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.animate-float-slow {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float 25s ease-in-out infinite reverse;
+}

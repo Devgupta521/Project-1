@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (uid)
+    // Fields:
+    //   - uid: string (required) - The unique identifier for the user.
+    //   - email: string (required, email format) - The user's email address.
+    //   - displayName: string (optional) - The user's display name.
+    //   - role: string (required, 'admin' | 'user') - The user's role.
+    //
+    // Collection: data_entries
+    // Document ID: entryId
+    // Fields:
+    //   - id: string (required) - The unique identifier for the data entry.
+    //   - ownerId: string (required) - The UID of the user who owns this data.
+    //   - title: string (required) - The title of the data entry.
+    //   - content: string (required) - The encrypted or secure content of the data entry.
+    //   - createdAt: timestamp (required) - When the entry was created.
+    //   - sharedWith: list (optional) - List of user UIDs this data is shared with.
+    //
+    // Collection: breach_logs
+    // Document ID: logId
+    // Fields:
+    //   - id: string (required) - The unique identifier for the log entry.
+    //   - timestamp: timestamp (required) - When the event occurred.
+    //   - type: string (required) - The type of breach event.
+    //   - description: string (optional) - A description of the event.
+    //   - severity: string (required, 'low' | 'medium' | 'high') - The severity level.
+    //
+    // Collection: notifications
+    // Document ID: notificationId
+    // Fields:
+    //   - id: string (required) - The unique identifier for the notification.
+    //   - userId: string (required) - The UID of the user who receives this notification.
+    //   - title: string (required) - The title of the notification.
+    //   - message: string (required) - The message content.
+    //   - type: string (required, 'share' | 'security' | 'update') - The type.
+    //   - read: bool (required) - Whether it's read.
+    //   - createdAt: timestamp (required) - When it was created.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (request.auth.token.email == "devendragupta738226@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 128 &&
+             isValidEmail(data.email) && data.email.size() < 256 &&
+             data.role in ['admin', 'user'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('twoFactorEnabled' in data) || data.twoFactorEnabled is bool) &&
+             (!('twoFactorSecret' in data) || (data.twoFactorSecret is string && data.twoFactorSecret.size() > 0 && data.twoFactorSecret.size() < 128));
+    }
+
+    function isOwnerOrAdmin(ownerId) {
+      return isAuthenticated() && (request.auth.uid == ownerId || isAdmin());
+    }
+
+    function permissionsUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sharedWith', 'permissions', 'ownerId']);
+    }
+
+    function isValidDataEntry(data) {
+      return data.keys().hasAll(['ownerId', 'title', 'content', 'createdAt']) &&
+             data.ownerId is string && data.ownerId.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000 &&
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('sharedWith' in data) || data.sharedWith is list) &&
+             (!('permissions' in data) || data.permissions is map);
+    }
+
+    function isValidBreachLog(data) {
+      return data.keys().hasAll(['timestamp', 'type', 'severity']) &&
+             data.timestamp is timestamp &&
+             data.type is string && data.type.size() > 0 &&
+             data.severity in ['low', 'medium', 'high'];
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 500 &&
+             data.type in ['share', 'security', 'update'] &&
+             data.read is bool &&
+             (data.createdAt is timestamp || data.createdAt == request.time);
+    }
+
+    function isValidFileEntry(data) {
+      return data.keys().hasAll(['ownerId', 'fileName', 'fileType', 'encryptedData', 'createdAt']) &&
+             data.ownerId is string && data.ownerId.size() > 0 &&
+             data.fileName is string && data.fileName.size() > 0 &&
+             data.fileType is string && data.fileType.size() > 0 &&
+             data.encryptedData is string && data.encryptedData.size() > 0 && data.encryptedData.size() < 1000000 &&
+             (data.createdAt is timestamp || data.createdAt == request.time) &&
+             (!('sharedWith' in data) || data.sharedWith is list) &&
+             (!('permissions' in data) || data.permissions is map);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Allow all authenticated users to read profiles for sharing
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin()) && (isAdmin() || request.resource.data.role == resource.data.role);
+    }
+
+    match /data_entries/{entryId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.sharedWith || isAdmin());
+      allow create: if isAuthenticated() && isValidDataEntry(request.resource.data) && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidDataEntry(request.resource.data) && 
+                    (isOwnerOrAdmin(resource.data.ownerId) || 
+                     (resource.data.permissions[request.auth.uid] == 'write' && permissionsUnchanged()));
+      allow delete: if isOwnerOrAdmin(resource.data.ownerId);
+    }
+
+    match /files/{fileId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.sharedWith || isAdmin());
+      allow create: if isAuthenticated() && isValidFileEntry(request.resource.data) && (request.resource.data.ownerId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidFileEntry(request.resource.data) && 
+                    (isOwnerOrAdmin(resource.data.ownerId) || 
+                     (resource.data.permissions[request.auth.uid] == 'write' && permissionsUnchanged()));
+      allow delete: if isOwnerOrAdmin(resource.data.ownerId);
+    }
+
+    match /breach_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if isAuthenticated() && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin()) && isValidNotification(request.resource.data);
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    }
+  }
+}

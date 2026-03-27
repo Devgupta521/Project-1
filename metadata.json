@@ -1,0 +1,5 @@
+{
+  "name": "Secure Data Storage & Sharing Platform",
+  "description": "A secure platform for business users to store, share, and monitor data with authentication and a breach dashboard.",
+  "requestFramePermissions": []
+}
